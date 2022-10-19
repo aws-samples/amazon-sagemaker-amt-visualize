@@ -1,17 +1,30 @@
-## My Project
+# amt analyze
+- Checkout [environment.yml](environment.yml) to create the environment.
+- The notebook [RunExperiments.ipynb](RunExperiments.ipynb) is self contained and contains the code to run experiments and to review/analyze the results.
 
-TODO: Fill this README out!
 
-Be sure to:
+# troubleshooting
 
-* Change the title in this README
-* Edit your repository description on GitHub
+## Could not assume role
 
-## Security
+solution: edit "Trust relationships" in IAM page
+steps:
+1. go to isengard AWS console access
+2. go to IAM->Roles->Administrator
+3. In the "Trust relationships", add a new statement like the following
 
-See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
+```json
+{
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "sagemaker.amazonaws.com"
+            },
+            "Action": "sts:AssumeRole"
+}
+```
 
-## License
 
-This library is licensed under the MIT-0 License. See the LICENSE file.
+## VegaLite object does not show
 
+1. if using JupyterLab, graphic object should show
+2. if using jupyter notebook, change the render to default by `alt.renderers.enable('default')`
