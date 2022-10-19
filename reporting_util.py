@@ -368,8 +368,6 @@ def prepare_consolidated_df(trials_df, objective_name):
 
     merged_df = pd.merge(jobs_df, trials_df, on='TrainingJobName')
     
-    # Synthesize an epcoch/update like index based on the available metrics
-    merged_df['update'] = merged_df.loc[merged_df.label==objective_name].sort_values('ts', ascending=True).groupby(['TuningJobName', 'TrainingJobName'])[objective_name].cumcount() + 1
     return merged_df
 
 def _get_df(tuning_job_name, filter_out_stopped=False):
