@@ -13,15 +13,10 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
 from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import boto3
-
-import logging
-logger = logging.getLogger(__name__)
-logger.setLevel(10)
 
 cw = boto3.client('cloudwatch')
 sm = boto3.client('sagemaker')
@@ -30,30 +25,27 @@ import hashlib
 import traceback
 import pickle
 import os
+
 def disk_cache(outer):
     def inner(*args, **kwargs):
+
         key_input = str(args)+str(kwargs)
         key = hashlib.md5(key_input.encode('utf-8')).hexdigest() # nosec b303 - Not used for cryptography, but to create lookup key 
-        cache_dir = f'.cache/{outer.__name__}' 
-        fn = f'{cache_dir}/req{key}.pickle'
-         
+        cache_dir = '.cache/' 
+        fn = f'{cache_dir}/req_{key}.jsonl.gz'
         try:
-            with open(fn, 'rb') as pf:
-                logger.debug(f'Found cached object {fn}.')
-                return pickle.load(pf)
+            df = pd.read_json(fn, lines=True)
+            return df
         except: # nosec b110 - doesn't matter why we could not load it.
-            pass # continue with calling the outter function 
+            pass # continue with calling the outer function 
+
+        df = outer(*args, **kwargs)
+        assert(isinstance(df, pd.core.frame.DataFrame), 'Only caching Pandas DataFrames.')
         
-        logger.debug(f'Did not load cached object {fn}.')
-
-        result = outer(*args, **kwargs)
-
         os.makedirs(cache_dir, exist_ok=True)
-        with open(fn, 'wb') as pf:
-            pickle.dump(result, pf)
-            logger.debug(f'Wrote cached object {fn}.')
+        df.to_json(fn, orient='records', lines=True)
 
-        return result
+        return df 
     return inner
 
 def _metric_data_query_tpl(metric_name, dim_name, dim_value):
@@ -118,7 +110,7 @@ def _collect_metrics(dimensions, start_time, end_time):
             ])
         metric_names = [metric['MetricName'] for metric in response['Metrics']]
         if not metric_names:
-            logger.debug('No metrics. Yet?')
+            print('No metrics. Yet?')
             return None
         metric_data_queries = [_metric_data_query_tpl(metric_name, dim_name, dim_value) for metric_name in metric_names]
         df = pd.concat([df, _get_metric_data(metric_data_queries, start_time, end_time)])
