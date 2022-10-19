@@ -23,7 +23,6 @@ sm = boto3.client('sagemaker')
 
 import hashlib
 import traceback
-import pickle
 import os
 
 def disk_cache(outer):
