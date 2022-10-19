@@ -14,11 +14,21 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
+import warnings
+warnings.filterwarnings('ignore')
+
 from pprint import pprint
 
 import numpy as np
 import pandas as pd
+pd.set_option('display.max_rows', 500)
+pd.set_option('display.max_columns', 500)
+pd.set_option('display.width', 1000)
+pd.set_option('display.max_colwidth', None)  # Don't truncate TrainingJobName       
+
 import altair as alt
+alt.data_transformers.disable_max_rows()
+alt.renderers.enable('mimetype')
 
 import boto3
 import sagemaker
@@ -26,6 +36,7 @@ import sagemaker
 from job_analytics import *
 
 sm = boto3.client('sagemaker')
+
 
 def _columnize(charts, cols=2):
     return alt.vconcat(*[alt.hconcat(*charts[i:i+cols]) for i in range(0, len(charts), cols)])
@@ -232,9 +243,13 @@ def create_charts(trials_df,
                 **jobs_props)
     
     ### Job Level Stats
-    
-    ### Losses Groups
-       
+
+    training_job_name_encodings = {
+        'color':       alt.condition(brush, alt.Color('TrainingJobName:N', legend=None), alt.value('grey')), 
+        'opacity':     alt.condition(brush, alt.value(1.0), alt.value(0.3)), 
+        'strokeWidth': alt.condition(brush, alt.value(2.5), alt.value(0.8)),
+    }
+
     duration_format = '%M:%S'
     metrics_tooltip = ['TrainingJobName:N', 
                        'value:Q', 
@@ -258,11 +273,9 @@ def create_charts(trials_df,
                 .encode(
                     x=alt.X('rel_ts:T', axis=alt.Axis(format=duration_format)), 
                     y=alt.Y('value:Q', scale=alt.Scale(zero=False)),  
-                    color      = alt.condition(brush, alt.Color('TrainingJobName:N', legend=None), alt.value('black')), 
-                    opacity    = alt.condition(brush, alt.value(1.0), alt.value(0.2)), 
-                    strokeWidth= alt.condition(brush, alt.value(2.5), alt.value(0.8)), 
+                    **training_job_name_encodings,
                     tooltip=metrics_tooltip
-                )
+                ).interactive()
 
             if multiple_job_status:
                 objective_progression_chart = objective_progression_chart\
@@ -286,13 +299,9 @@ def create_charts(trials_df,
                     .encode(
                         x=alt.X('rel_ts:T', axis=alt.Axis(format=duration_format)), 
                         y=alt.Y('value:Q', scale=alt.Scale(zero=False)),  
-                        color      = alt.condition(brush, alt.Color('TrainingJobName:N', legend=None), alt.value('black')), 
-                        opacity    = alt.condition(brush, alt.value(1.0), alt.value(0.2)), 
-                        strokeWidth= alt.condition(brush, alt.value(2.5), alt.value(0.8)), 
+                        **training_job_name_encodings,
                         tooltip=metrics_tooltip
                     ).interactive()
-            #if multiple_job_status:
-            #    metric_chart = metric_chart.encode(strokeDash = alt.StrokeDash('TrainingJobStatus:N'))
             job_metrics_charts.append(metric_chart)
                 
         job_metrics_chart = _columnize(job_metrics_charts, 3)
@@ -304,9 +313,7 @@ def create_charts(trials_df,
             .mark_line()\
             .encode(x=alt.X('rel_ts:T', axis=alt.Axis(format=duration_format)),
                     y='value:Q',  
-                    color      = alt.condition(brush, alt.Color('TrainingJobName:N', legend=None), alt.value('black')), 
-                    opacity    = alt.condition(brush, alt.value(1.0), alt.value(0.1)), 
-                    strokeWidth= alt.condition(brush, alt.value(2.5), alt.value(0.8)), 
+                    **training_job_name_encodings, 
                     strokeDash=alt.StrokeDash('label:N',legend=alt.Legend(orient='bottom')),
                     tooltip=metrics_tooltip
             ).interactive()
@@ -317,9 +324,7 @@ def create_charts(trials_df,
                 .mark_line()\
                 .encode(x=alt.X('rel_ts:T', axis=alt.Axis(format=duration_format)),
                         y=alt.Y('value:Q'),  
-                        color      = alt.condition(brush, alt.Color('TrainingJobName:N'), alt.value('black')), 
-                        opacity    = alt.condition(brush, alt.value(1.0), alt.value(0.1)), 
-                        strokeWidth= alt.condition(brush, alt.value(2.5), alt.value(0.8)), 
+                        **training_job_name_encodings,
                         strokeDash=alt.StrokeDash('label:N', legend=alt.Legend(orient='bottom')), 
                         tooltip=metrics_tooltip
                 ).interactive()
