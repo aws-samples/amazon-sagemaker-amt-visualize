@@ -3,3 +3,4 @@ __pycache__
 .cache
 data/
 src/
+nn_src/
