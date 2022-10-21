@@ -33,7 +33,7 @@ def disk_cache(outer):
         cache_dir = '.cache/' 
         fn = f'{cache_dir}/req_{key}.jsonl.gz'
         try:
-            df = pd.read_json(fn, lines=True)
+            df = pd.read_json(fn, date_format='iso', date_unit='ns', lines=True)
             return df
         except: # nosec b110 - doesn't matter why we could not load it.
             pass # continue with calling the outer function 
@@ -42,7 +42,7 @@ def disk_cache(outer):
         assert(isinstance(df, pd.core.frame.DataFrame), 'Only caching Pandas DataFrames.')
         
         os.makedirs(cache_dir, exist_ok=True)
-        df.to_json(fn, orient='records', lines=True)
+        df.to_json(fn, orient='records', date_format='iso', date_unit='ns', lines=True)
 
         return df 
     return inner
