@@ -161,11 +161,12 @@ def create_charts(trials_df,
         if 'float' in dtype:
             parameter_type = 'Q' # Quantitative
             ratio = (trials_df[tuning_parameter].max()+1e-10)/(trials_df[tuning_parameter].min()+1e-10)
-            if ratio > 50:
-                scale_type = 'log'
-            elif ratio > 20:
-                scale_type = 'log'
-                scale_log_base = 2
+            if len(trials_df[tuning_parameter].unique()) > 2:
+                ratio = (trials_df[tuning_parameter].max()+1e-10)/(trials_df[tuning_parameter].min()+1e-10)
+                if ratio > 50:
+                    scale_type = 'log'
+                elif ratio > 20:
+                    scale_type = 'log'
  
         elif 'int' in dtype or 'object' in dtype:
             parameter_type = 'O' # Ordinal
