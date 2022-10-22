@@ -167,6 +167,7 @@ def create_charts(trials_df,
                     scale_type = 'log'
                 elif ratio > 20:
                     scale_type = 'log'
+                    scale_log_base = 2
  
         elif 'int' in dtype or 'object' in dtype:
             parameter_type = 'O' # Ordinal
@@ -189,7 +190,6 @@ def create_charts(trials_df,
                 **jobs_props))
         
         if parameter_type in ['O', 'N'] and len(trials_df[tuning_parameter].unique()) < 8:
-            sort_values = trials_df[tuning_parameter].unique() 
             charts[-1] = (charts[-1] | alt.Chart(trials_df)\
             .transform_filter(brush)\
             .transform_density(objective_name,
@@ -296,13 +296,19 @@ def create_charts(trials_df,
              
             metric_chart = alt.Chart(full_df, title=metric, width=400)\
                     .transform_filter(alt.FieldEqualPredicate(field='label', equal=metric))\
-                    .mark_line(interpolate='linear', point=True)\
                     .encode(
-                        x=alt.X('rel_ts:T', axis=alt.Axis(format=duration_format)), 
                         y=alt.Y('value:Q', scale=alt.Scale(zero=False)),  
                         **training_job_name_encodings,
                         tooltip=metrics_tooltip
                     ).interactive()
+
+            if full_df.loc[full_df.label==metric].groupby(['TuningJobName', 'TrainingJobName' ]).count().value.max() == 1:
+                # single value, render as a bar over the training jobs on the x-axis
+                metric_chart = metric_chart.encode(x=alt.X('TrainingJobName:N', sort=None)).mark_bar(interpolate='linear', point=True)
+            else: 
+                # multiple values, render the values over time on the x-axis
+                metric_chart = metric_chart.encode(x=alt.X('rel_ts:T', axis=alt.Axis(format=duration_format))).mark_line(interpolate='linear', point=True)
+            
             job_metrics_charts.append(metric_chart)
                 
         job_metrics_chart = _columnize(job_metrics_charts, 3)
