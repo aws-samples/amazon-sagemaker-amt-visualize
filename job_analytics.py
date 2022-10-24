@@ -15,34 +15,43 @@
 
 from datetime import datetime, timedelta, timezone
 
+import hashlib
+import traceback
+import os
+from pathlib import Path
+
 import pandas as pd
+import numpy as np
 import boto3
 
 cw = boto3.client('cloudwatch')
 sm = boto3.client('sagemaker')
 
-import hashlib
-import traceback
-import os
 
 def disk_cache(outer):
     def inner(*args, **kwargs):
 
         key_input = str(args)+str(kwargs)
         key = hashlib.md5(key_input.encode('utf-8')).hexdigest() # nosec b303 - Not used for cryptography, but to create lookup key 
-        cache_dir = '.cache/' 
+        cache_dir = '.cache/cw_metrics/' 
         fn = f'{cache_dir}/req_{key}.jsonl.gz'
-        try:
-            df = pd.read_json(fn, date_format='iso', date_unit='ns', lines=True)
-            return df
-        except: # nosec b110 - doesn't matter why we could not load it.
-            pass # continue with calling the outer function 
-
+        if Path(fn).exists():
+            try:
+                df = pd.read_json(fn, lines=True)
+                print('H', end='')
+                df['ts'] = np.array(df['ts'], dtype=np.datetime64)
+                df['rel_ts'] = np.array(df['rel_ts'], dtype=np.datetime64)
+                return df
+            except BaseException as e: # nosec b110 - doesn't matter why we could not load it.
+                print(e)
+                pass # continue with calling the outer function 
+         
+        print('M', end='')
         df = outer(*args, **kwargs)
         assert(isinstance(df, pd.core.frame.DataFrame), 'Only caching Pandas DataFrames.')
         
         os.makedirs(cache_dir, exist_ok=True)
-        df.to_json(fn, orient='records', date_format='iso', date_unit='ns', lines=True)
+        df.to_json(fn, orient='records', date_format='iso', lines=True)
 
         return df 
     return inner
@@ -77,7 +86,7 @@ def _get_metric_data(queries, start_time, end_time):
     df = pd.DataFrame()
     for metric_data in response['MetricDataResults']:
         values = metric_data['Values']
-        ts     = metric_data['Timestamps']
+        ts     = np.array(metric_data['Timestamps'], dtype=np.datetime64)
         labels = [metric_data['Label']]*len(values)
     
         df = pd.concat([df, pd.DataFrame({'value': values, 'ts': ts, 'label': labels})])
@@ -87,8 +96,7 @@ def _get_metric_data(queries, start_time, end_time):
     # the potentially start time that we used to scope our CW API call. The difference
     # could be for example startup times or waiting for Spot.
     if not df.empty:
-        start_time = df['ts'].dt.tz_localize(None).min()#.replace(tzinfo=None)
-        df['rel_ts'] = datetime.fromtimestamp(0, timezone.utc)+(df['ts'].dt.tz_localize(None) - start_time)
+        df['rel_ts'] = datetime.fromtimestamp(0)+(df['ts']-df['ts'].min())
     return df
 
 @disk_cache
