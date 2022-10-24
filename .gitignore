@@ -4,4 +4,4 @@ __pycache__
 imdb_data/
 data/
 src/
-nn_src/
+nn_gen_src/
