@@ -13,7 +13,7 @@ from torchtext.vocab import build_vocab_from_iterator
 
 from torchtext.data.functional import generate_sp_model, load_sp_model, sentencepiece_tokenizer
 
-def _get_sp_tokenizer(train_dp):
+def _get_sp_tokenizer(train_dp, vocab_size):
     
     base = Path('data')
     base.mkdir(exist_ok=True)
@@ -30,7 +30,7 @@ def _get_sp_tokenizer(train_dp):
         output_dir.mkdir(exist_ok=True)
 
         # Outputs, among others: Updating active symbols. max_freq=705466 min_freq=168    
-        generate_sp_model(str(input_file), vocab_size=4000, model_type='bpe', model_prefix=f'{output_dir}/sp_out')
+        generate_sp_model(str(input_file), vocab_size=vocab_size, model_type='bpe', model_prefix=f'{output_dir}/sp_out')
         
     sp_model = load_sp_model(str(output_dir/'sp_out.model'))
     
@@ -46,7 +46,7 @@ def _get_tokenizer_and_vocab(tokenizer_type, vocab_size, train_dp):
     if tokenizer_type.lower() == 'basic':
         tokenizer = get_tokenizer('basic_english')
     elif tokenizer_type.lower() == 'bpe': 
-        tokenizer = _get_sp_tokenizer(train_dp)
+        tokenizer = _get_sp_tokenizer(train_dp, vocab_size)
     else:
         raise ValueError(f'{tokenizer_type} is not a valid tokenizer type. Valid ones are: basic, bpe.')
     
