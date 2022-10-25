@@ -1,5 +1,7 @@
 *.ipynb_checkpoints*
 __pycache__
 .cache
+imdb_data/
+nn_gen_src/
 data/
 src/
