@@ -374,7 +374,7 @@ def prepare_consolidated_df(trials_df, objective_name):
         return pd.DataFrame()
 
     merged_df = pd.merge(jobs_df, trials_df, on='TrainingJobName')
-    
+    print() 
     return merged_df
 
 def _get_df(tuning_job_name, filter_out_stopped=False):
