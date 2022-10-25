@@ -2,6 +2,6 @@
 __pycache__
 .cache
 imdb_data/
+nn_gen_src/
 data/
 src/
-nn_gen_src/
