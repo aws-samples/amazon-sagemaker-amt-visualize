@@ -42,17 +42,17 @@ sm = boto3.client('sagemaker')
 def _columnize(charts, cols=2):
     return alt.vconcat(*[alt.hconcat(*charts[i:i+cols]) for i in range(0, len(charts), cols)])
 
-def analyze_hpo_job(tuning_jobs, return_dfs=False, job_metrics=None):
+def analyze_hpo_job(tuning_jobs, return_dfs=False, job_metrics=None, trials_only=False):
     ''' tuning_job can contain a single tuning job or a list of tuning jobs. 
         Either represented by the name of the job as str or as HyperParameterTuner object.'''
            
-    df, tuned_parameters, objective_name = get_job_analytics_data(tuning_jobs)
-    display(df.head(10))
+    trials_df, tuned_parameters, objective_name = get_job_analytics_data(tuning_jobs)
+    display(trials_df.head(10))
 
-    full_df = prepare_consolidated_df(df, objective_name)
+    full_df = prepare_consolidated_df(trials_df, objective_name) if not trials_only else pd.DataFrame()
     
     charts = create_charts(
-        df, 
+        trials_df, 
         tuned_parameters, 
         full_df, 
         objective_name, 
@@ -60,7 +60,7 @@ def analyze_hpo_job(tuning_jobs, return_dfs=False, job_metrics=None):
     )
 
     if return_dfs:
-        return charts, df, full_df
+        return charts, trial_df, full_df
     else:
         return charts 
 
@@ -368,14 +368,15 @@ def prepare_consolidated_df(trials_df, objective_name):
     if trials_df.empty:
         return pd.DataFrame()
 
+    print('Cache Hit/Miss: ', end='')
     jobs_df = _prepare_training_job_metrics(zip(
         trials_df.TrainingJobName.values, trials_df.TrainingStartTime.values, trials_df.TrainingEndTime.values))
+    print() 
 
     if jobs_df.empty:
         return pd.DataFrame()
 
     merged_df = pd.merge(jobs_df, trials_df, on='TrainingJobName')
-    print() 
     return merged_df
 
 def _get_df(tuning_job_name, filter_out_stopped=False):
