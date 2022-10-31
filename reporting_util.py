@@ -60,7 +60,7 @@ def analyze_hpo_job(tuning_jobs, return_dfs=False, job_metrics=None, trials_only
     )
 
     if return_dfs:
-        return charts, trial_df, full_df
+        return charts, trials_df, full_df
     else:
         return charts 
 
