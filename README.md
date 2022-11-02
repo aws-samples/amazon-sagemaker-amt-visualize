@@ -36,7 +36,10 @@ You'll be asked to type your GitHub username and password, please follow the ste
 
 4. Type in the URL of this repository (`https://github.com/aws-samples/amazon-sagemaker-amt-visualize.git`) and click Clone.
 
-5. Run the notebooks from this repository via clicking them in the File Browser and, once the kernel has started, executing the code cells. Have fun! 
+5. Run the notebooks from this repository via clicking them in the File Browser and, once the kernel has started (recommended kernel is ), executing the code cells. Have fun!
+A recommended kernel to use with notebooks is `Python 3` with the image type `Data Science`. 
+
+6. Once you're done, shut down resources running in Amazon SageMaker Studio. Additional guidance for this can be found on this page: https://docs.aws.amazon.com/sagemaker/latest/dg/notebooks-run-and-manage-shut-down.html. 
 
 ---
 
@@ -61,8 +64,8 @@ To solve this issue, please edit "Trust relationships" on [IAM](https://console.
 
 ## VegaLite object does not show
 
-1. if using JupyterLab, graphic object should show
-2. if using Jupyter notebook, change the render to default by `alt.renderers.enable('default')` in `reporting_util.py`
+1. If using JupyterLab within Amazon Sagemaker Studio, a graphic object should show.
+2. If using Jupyter notebook, change the render to default by `alt.renderers.enable('default')` in `reporting_util.py`.
 
 ---
 
