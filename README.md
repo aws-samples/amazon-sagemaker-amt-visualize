@@ -19,8 +19,7 @@ To get Amazon SageMaker AMT up and running in your own AWS account, make sure th
 1. Log into the [Amazon SageMaker console](https://console.aws.amazon.com/sagemaker/) if you are not already.
 Note: If you are logged in as an IAM user, ensure your account has permissions to create and manage the necessary resources and components for this application.
 
-2. Launch Amazon SageMaker Studio
-For this click on Studio and then on Launch SageMaker Studio:
+2. Launch Amazon SageMaker Studio. To do this click on Studio and then on Launch SageMaker Studio:
 
 ![SageMaker Studio 1](/img/open_sm_studio_1.png)
 
@@ -36,8 +35,8 @@ You'll be asked to type your GitHub username and password, please follow the ste
 
 4. Type in the URL of this repository (`https://github.com/aws-samples/amazon-sagemaker-amt-visualize.git`) and click Clone.
 
-5. Run the notebooks from this repository via clicking them in the File Browser and, once the kernel has started (recommended kernel is ), executing the code cells. Have fun!
-A recommended kernel to use with notebooks is `Python 3` with the image type `Data Science`. 
+5. Run the notebooks from this repository by opening them from within the File Browser and, once the kernel has started, executing the code cells. Have fun!
+A recommended kernel to use with these notebooks is `Python 3` with the image type `Data Science`. 
 
 6. Once you're done, shut down resources running in Amazon SageMaker Studio. Additional guidance for this can be found on this page: https://docs.aws.amazon.com/sagemaker/latest/dg/notebooks-run-and-manage-shut-down.html. 
 
@@ -47,7 +46,7 @@ A recommended kernel to use with notebooks is `Python 3` with the image type `Da
 
 ## Could not assume role
 
-To solve this issue, please edit "Trust relationships" on [IAM](https://console.aws.amazon.com/iam) page. For this:
+To solve this issue, please edit "Trust relationships" on the [IAM](https://console.aws.amazon.com/iam) page. For this:
 1. Go to [IAM](https://console.aws.amazon.com/iam)->Roles->Administrator
 3. In the "Trust relationships", add a new statement like the following
 
