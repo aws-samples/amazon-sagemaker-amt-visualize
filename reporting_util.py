@@ -46,7 +46,7 @@ def analyze_hpo_job(tuning_jobs, return_dfs=False, job_metrics=None, trials_only
     ''' tuning_job can contain a single tuning job or a list of tuning jobs. 
         Either represented by the name of the job as str or as HyperParameterTuner object.'''
            
-    trials_df, tuned_parameters, objective_name = get_job_analytics_data(tuning_jobs)
+    trials_df, tuned_parameters, objective_name, is_minimize = get_job_analytics_data(tuning_jobs)
     display(trials_df.head(10))
 
     full_df = prepare_consolidated_df(trials_df, objective_name) if not trials_only else pd.DataFrame()
@@ -56,6 +56,7 @@ def analyze_hpo_job(tuning_jobs, return_dfs=False, job_metrics=None, trials_only
         tuned_parameters, 
         full_df, 
         objective_name, 
+        minimize_objective=is_minimize,
         job_metrics=job_metrics
     )
 
@@ -68,6 +69,7 @@ def create_charts(trials_df,
                   tuning_parameters, 
                   full_df, 
                   objective_name, 
+                  minimize_objective,
                   job_metrics=None, 
                   highlight_trials=True,
                   color_trials=False):
@@ -208,21 +210,43 @@ def create_charts(trials_df,
     
     ### First Row
     ### Progress Over Time Chart 
-    progress_chart = alt.Chart(trials_df)\
-        .add_selection(brush)\
-        .add_selection(job_highlight_selection)\
-        .mark_point(filled=True, size=50)\
-        .encode(
-            x=alt.X('TrainingStartTime:T',   
-            scale=alt.Scale(nice=True)), 
-            y=alt.Y(f'{objective_name}:Q', 
-            scale=alt.Scale(zero=False, padding=1), 
-            axis=alt.Axis(title=objective_name)),
-            opacity=opacity,  
-            tooltip=detail_tooltip,
-            **jobs_props
-        )
     
+    def render_progress_chart():
+
+        # Sorting trials by training start time, so that we can track the \
+        # progress of the best objective so far over time
+        trials_df_by_tst = trials_df.sort_values(['TuningJobName', 'TrainingStartTime'])
+        trials_df_by_tst['cum_objective'] = \
+            trials_df_by_tst.groupby(['TuningJobName'])\
+            .apply(lambda x: x.cummin() if minimize_objective else x.cummax())\
+            [objective_name]
+
+        progress_chart = alt.Chart(trials_df_by_tst)\
+            .add_selection(brush)\
+            .add_selection(job_highlight_selection)\
+            .mark_point(filled=True, size=50)\
+            .encode(
+                x=alt.X('TrainingStartTime:T',   
+                    scale=alt.Scale(nice=True)), 
+                y=alt.Y(f'{objective_name}:Q', 
+                    scale=alt.Scale(zero=False, padding=1), 
+                    axis=alt.Axis(title=objective_name)),
+                opacity=opacity,  
+                tooltip=detail_tooltip,
+                **jobs_props
+            )
+        cum_obj_chart = alt.Chart(trials_df_by_tst)\
+            .mark_line(opacity=0.5, strokeDash=[3, 3])\
+            .encode(
+                x=alt.X('TrainingStartTime:T', scale=alt.Scale(nice=True)), 
+                y=alt.Y(f'cum_objective:Q', scale=alt.Scale(zero=False, padding=1)), 
+                color=alt.Color('TuningJobName:N', title='cummulated')
+            )
+
+        return cum_obj_chart + progress_chart
+
+    progress_chart = render_progress_chart()
+
     ### First Row
     ### KDE Training Objective
     result_hist_chart = alt.Chart(trials_df)\
@@ -522,4 +546,4 @@ def get_job_analytics_data(tuning_job_names):
         print(f'Number of training jobs with valid objective: {len(df)}')
         print(f'Lowest: {min(df[objective_name])} Highest {max(df[objective_name])}')
 
-    return df, tuned_parameters, objective_name
+    return df, tuned_parameters, objective_name, is_minimize
