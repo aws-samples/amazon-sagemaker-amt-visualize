@@ -235,12 +235,13 @@ def create_charts(trials_df,
                 tooltip=detail_tooltip,
                 **jobs_props
             )
+
         cum_obj_chart = alt.Chart(trials_df_by_tst)\
             .mark_line(opacity=0.5, strokeDash=[3, 3])\
             .encode(
                 x=alt.X('TrainingStartTime:T', scale=alt.Scale(nice=True)), 
                 y=alt.Y(f'cum_objective:Q', scale=alt.Scale(zero=False, padding=1)), 
-                color=alt.Color('TuningJobName:N', title='cummulated')
+                stroke='TuningJobName:N'
             )
 
         return cum_obj_chart + progress_chart
