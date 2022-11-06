@@ -42,8 +42,10 @@ def disk_cache(outer):
                 df['ts'] = np.array(df['ts'], dtype=np.datetime64)
                 df['rel_ts'] = np.array(df['rel_ts'], dtype=np.datetime64)
                 return df
+            except KeyError as e:
+                pass # Empty file leads to empty df, hence no df['ts'] possible
             except BaseException as e: # nosec b110 - doesn't matter why we could not load it.
-                print(e)
+                print('\nException', type(e), e)
                 pass # continue with calling the outer function 
          
         print('M', end='')
@@ -117,8 +119,8 @@ def _collect_metrics(dimensions, start_time, end_time):
             ])
         metric_names = [metric['MetricName'] for metric in response['Metrics']]
         if not metric_names:
-            print('No metrics. Yet?')
-            return None
+            # No metric data yet, or not any longer, because the data were aged out
+            continue
         metric_data_queries = [_metric_data_query_tpl(metric_name, dim_name, dim_value) for metric_name in metric_names]
         df = pd.concat([df, _get_metric_data(metric_data_queries, start_time, end_time)])
 
