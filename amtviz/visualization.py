@@ -34,7 +34,7 @@ alt.renderers.enable('mimetype')
 import boto3
 import sagemaker
 
-from job_analytics import *
+from .job_metrics import get_cw_job_metrics 
 
 sm = boto3.client('sagemaker')
 
@@ -42,7 +42,7 @@ sm = boto3.client('sagemaker')
 def _columnize(charts, cols=2):
     return alt.vconcat(*[alt.hconcat(*charts[i:i+cols]) for i in range(0, len(charts), cols)])
 
-def analyze_hpo_job(tuning_jobs, return_dfs=False, job_metrics=None, trials_only=False, advanced=False):
+def visualize_tuning_job(tuning_jobs, return_dfs=False, job_metrics=None, trials_only=False, advanced=False):
     ''' tuning_job can contain a single tuning job or a list of tuning jobs. 
         Either represented by the name of the job as str or as HyperParameterTuner object.'''
            
