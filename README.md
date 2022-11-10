@@ -2,6 +2,13 @@
 
 In these notebooks we demonstrate how to use Amazon SageMaker Automatic Model Tuning (AMT) to perform hyperparameter optimization and to interpret the results. We demonstrate how to schedule AMT jobs, and how to visualize and analyze the results. The notebooks demonstrate how to achieve this for several machine learning use cases, such as for [tuning a built-in Amazon SageMaker XGBoost algorithm](1_tuning_of_builtin_xgboost.ipynb), tuning a job with custom training code (future) and also optimizing neural networks (more distant future).
 
+To give you a tiny spoiler on what you will achieve, our solution lets you explore the outcomes of your AMT jobs with interactive graphs depicting the various combinations of hyperparameters:
+
+![AMT graphs 1](/img/amt-gif-1.gif)
+![AMT graphs 2](/img/amt-gif-2.gif)
+
+Let's tune!
+
 # Disclaimer
 
 This project contains sample code intended to be used for learning purposes only. Do not use in production.

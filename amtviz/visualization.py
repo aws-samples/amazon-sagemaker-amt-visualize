@@ -34,7 +34,7 @@ alt.renderers.enable('mimetype')
 import boto3
 import sagemaker
 
-from job_analytics import *
+from .job_metrics import get_cw_job_metrics 
 
 sm = boto3.client('sagemaker')
 
@@ -42,21 +42,23 @@ sm = boto3.client('sagemaker')
 def _columnize(charts, cols=2):
     return alt.vconcat(*[alt.hconcat(*charts[i:i+cols]) for i in range(0, len(charts), cols)])
 
-def analyze_hpo_job(tuning_jobs, return_dfs=False, job_metrics=None, trials_only=False):
+def visualize_tuning_job(tuning_jobs, return_dfs=False, job_metrics=None, trials_only=False, advanced=False):
     ''' tuning_job can contain a single tuning job or a list of tuning jobs. 
         Either represented by the name of the job as str or as HyperParameterTuner object.'''
            
-    trials_df, tuned_parameters, objective_name = get_job_analytics_data(tuning_jobs)
+    trials_df, tuned_parameters, objective_name, is_minimize = get_job_analytics_data(tuning_jobs)
     display(trials_df.head(10))
 
-    full_df = prepare_consolidated_df(trials_df, objective_name) if not trials_only else pd.DataFrame()
+    full_df = _prepare_consolidated_df(trials_df, objective_name) if not trials_only else pd.DataFrame()
     
     charts = create_charts(
         trials_df, 
         tuned_parameters, 
         full_df, 
         objective_name, 
-        job_metrics=job_metrics
+        minimize_objective=is_minimize,
+        job_metrics=job_metrics,
+        advanced=advanced
     )
 
     if return_dfs:
@@ -68,9 +70,11 @@ def create_charts(trials_df,
                   tuning_parameters, 
                   full_df, 
                   objective_name, 
+                  minimize_objective,
                   job_metrics=None, 
                   highlight_trials=True,
-                  color_trials=False):
+                  color_trials=False,
+                  advanced=False):
 
     if trials_df.empty:
         print('No results available yet.')
@@ -136,6 +140,16 @@ def create_charts(trials_df,
     opacity = alt.condition(brush, alt.value(1.0), alt.value(0.35))
     charts  = []
     
+    # Min and max of the objective. This is used in filtered 
+    # charts, so that the filtering does not make the axis 
+    # jump, which would make comparisons harder.
+    objective_scale = alt.Scale(
+        domain=(
+            trials_df[objective_name].min(), 
+            trials_df[objective_name].max()
+        )
+    )
+
     # If we have multiple tuning jobs, we also want to be able
     # to discriminate based on the individual tuning job, so 
     # we just treat them as an additional tuning parameter
@@ -148,81 +162,125 @@ def create_charts(trials_df,
     # those jobs. 
     if multiple_job_status:
         tuning_parameters.append('TrainingJobStatus')
-    for tuning_parameter in tuning_parameters: 
 
-        # Map dataframe's dtype to altair's types and
-        # adjust scale if necessary
+    def render_detail_charts():
+        for tuning_parameter in tuning_parameters: 
 
-        scale_type='linear'
-        scale_log_base = 10
+            # Map dataframe's dtype to altair's types and
+            # adjust scale if necessary
 
-        parameter_type = 'N' # Nominal
-        dtype = str(trials_df.dtypes[tuning_parameter])
+            scale_type='linear'
+            scale_log_base = 10
 
-        if 'float' in dtype:
-            parameter_type = 'Q' # Quantitative
-            ratio = (trials_df[tuning_parameter].max()+1e-10)/(trials_df[tuning_parameter].min()+1e-10)
-            if len(trials_df[tuning_parameter].unique()) < 8 and len(trials_df[tuning_parameter].unique()) >= trials_df[tuning_parameter].count():
-                ratio = (trials_df[tuning_parameter].max()+1e-4)/(trials_df[tuning_parameter].min()+1e-4)
-                if ratio > 50:
-                    scale_type = 'log'
-                elif ratio > 20:
-                    scale_type = 'log'
-                    scale_log_base = 2
- 
-        elif 'int' in dtype or 'object' in dtype:
-            parameter_type = 'O' # Ordinal
+            parameter_type = 'N' # Nominal
+            dtype = str(trials_df.dtypes[tuning_parameter])
 
-        x_encoding = alt.X(f'{tuning_parameter}:{parameter_type}',
-                           scale=alt.Scale(zero=False, padding=1, type=scale_type, base=scale_log_base))
+            if 'float' in dtype:
+                parameter_type = 'Q' # Quantitative
+                ratio = (trials_df[tuning_parameter].max()+1e-10)/(trials_df[tuning_parameter].min()+1e-10)
+                if len(trials_df[tuning_parameter].unique()) < 8 and len(trials_df[tuning_parameter].unique()) >= trials_df[tuning_parameter].count():
+                    ratio = (trials_df[tuning_parameter].max()+1e-4)/(trials_df[tuning_parameter].min()+1e-4)
+                    if ratio > 50:
+                        scale_type = 'log'
+                    elif ratio > 20:
+                        scale_type = 'log'
+                        scale_log_base = 2
+     
+            elif 'int' in dtype or 'object' in dtype:
+                parameter_type = 'O' # Ordinal
 
-        ### Detail Chart
-        charts.append(alt.Chart(trials_df, title=tuning_parameter)\
+            x_encoding = alt.X(f'{tuning_parameter}:{parameter_type}',
+                               scale=alt.Scale(zero=False, padding=1, type=scale_type, base=scale_log_base))
+
+            ### Detail Chart
+            charts.append(alt.Chart(trials_df, title=tuning_parameter)\
+                .add_selection(brush)\
+                .add_selection(job_highlight_selection)\
+                .mark_point(filled=True, size=50)\
+                .encode(
+                    x=x_encoding, 
+                    y=alt.Y(f'{objective_name}:Q', 
+                      scale=alt.Scale(zero=False, padding=1), 
+                      axis=alt.Axis(title=objective_name)),
+                    opacity=opacity,
+                    tooltip=detail_tooltip,
+                    **jobs_props))
+            
+            if parameter_type in ['O', 'N'] and len(trials_df[tuning_parameter].unique()) < 8:
+                charts[-1] = (charts[-1] | alt.Chart(trials_df)\
+                .transform_filter(brush)\
+                .transform_density(objective_name,
+                                   bandwidth=0.01,
+                                   groupby=[tuning_parameter])\
+                .mark_area(opacity=0.5)\
+                .encode(
+                    x=alt.X(f'value:Q', title=objective_name, scale=objective_scale), 
+                    y='density:Q',
+                    color=alt.Color(tuning_parameter+':N'),
+                    tooltip=tuning_parameter))\
+                .properties(title=tuning_parameter).resolve_scale('independent')
+
+            if advanced and parameter_type == 'Q':
+                # There must be a better way to hide the extra axis and title
+                # With resolve_axis?
+                x_enc = x_encoding.copy()
+                charts[-1].encoding.x.title = None 
+                charts[-1].encoding.x.axis = alt.Axis(labels=False)
+                
+                charts[-1] = (charts[-1] & alt.Chart(trials_df)\
+                .mark_tick(opacity=0.5)\
+                .encode(
+                    x=x_enc, 
+                    opacity= alt.condition(brush, alt.value(0.5), alt.value(0.1)), 
+                ))
+        
+        return _columnize(charts)
+    
+    detail_charts = render_detail_charts()
+    
+    ### First Row
+    ### Progress Over Time Chart 
+    
+    def render_progress_chart():
+
+        # Sorting trials by training start time, so that we can track the \
+        # progress of the best objective so far over time
+        trials_df_by_tst = trials_df.sort_values(['TuningJobName', 'TrainingStartTime'])
+        trials_df_by_tst['cum_objective'] = \
+            trials_df_by_tst.groupby(['TuningJobName'])\
+            .apply(lambda x: x.cummin() if minimize_objective else x.cummax())\
+            [objective_name]
+
+        progress_chart = alt.Chart(trials_df_by_tst)\
             .add_selection(brush)\
             .add_selection(job_highlight_selection)\
             .mark_point(filled=True, size=50)\
             .encode(
-                x=x_encoding, 
+                x=alt.X('TrainingStartTime:T',   
+                    scale=alt.Scale(nice=True)), 
                 y=alt.Y(f'{objective_name}:Q', 
-                  scale=alt.Scale(zero=False, padding=1), 
-                  axis=alt.Axis(title=objective_name)),
-                opacity=opacity,
+                    scale=alt.Scale(zero=False, padding=1), 
+                    axis=alt.Axis(title=objective_name)),
+                opacity=opacity,  
                 tooltip=detail_tooltip,
-                **jobs_props))
-        
-        if parameter_type in ['O', 'N'] and len(trials_df[tuning_parameter].unique()) < 8:
-            charts[-1] = (charts[-1] | alt.Chart(trials_df)\
-            .transform_filter(brush)\
-            .transform_density(objective_name,
-                               bandwidth=0.01,
-                               groupby=[tuning_parameter])\
-            .mark_area(opacity=0.5)\
+                **jobs_props
+            )
+
+        cum_obj_chart = alt.Chart(trials_df_by_tst)\
+            .mark_line(opacity=0.5, strokeDash=[3, 3])\
             .encode(
-                x=alt.X(f'value:Q', title=objective_name ), 
-                y='density:Q',
-                color=alt.Color(tuning_parameter+':N'),
-                tooltip=tuning_parameter))\
-            .properties(title=tuning_parameter).resolve_scale('independent')
-    
-    detail_charts = _columnize(charts)
-    
-    ### First Row
-    ### Progress Over Time Chart 
-    progress_chart = alt.Chart(trials_df)\
-        .add_selection(brush)\
-        .add_selection(job_highlight_selection)\
-        .mark_point(filled=True, size=50)\
-        .encode(
-            x=alt.X('TrainingStartTime:T',   
-            scale=alt.Scale(nice=True)), 
-            y=alt.Y(f'{objective_name}:Q', 
-            scale=alt.Scale(zero=False, padding=1), 
-            axis=alt.Axis(title=objective_name)),
-            opacity=opacity,  
-            tooltip=detail_tooltip,
-            **jobs_props
-        )
-    
+                x=alt.X('TrainingStartTime:T', scale=alt.Scale(nice=True)), 
+                y=alt.Y(f'cum_objective:Q', scale=alt.Scale(zero=False, padding=1)), 
+                stroke='TuningJobName:N'
+            )
+
+        if advanced:
+            return cum_obj_chart + progress_chart
+        else:
+            return progress_chart
+
+    progress_chart = render_progress_chart()
+
     ### First Row
     ### KDE Training Objective
     result_hist_chart = alt.Chart(trials_df)\
@@ -231,8 +289,14 @@ def create_charts(trials_df,
                 objective_name,
                 bandwidth=0.01)\
         .mark_area()\
-        .encode(x=alt.X(f'value:Q', title=objective_name), y='density:Q')
-
+        .encode(
+            x=alt.X(
+                f'value:Q', 
+                scale=objective_scale, 
+                title=objective_name
+            ), 
+            y='density:Q'
+        )
     ### Training Jobs
     training_jobs_chart = alt.Chart(trials_df.sort_values(objective_name), title='Training Jobs')\
         .mark_bar()\
@@ -363,7 +427,7 @@ def _prepare_training_job_metrics(jobs):
         df = pd.concat([df, job_df])
     return df
 
-def prepare_consolidated_df(trials_df, objective_name):
+def _prepare_consolidated_df(trials_df, objective_name):
 
     if trials_df.empty:
         return pd.DataFrame()
@@ -522,4 +586,4 @@ def get_job_analytics_data(tuning_job_names):
         print(f'Number of training jobs with valid objective: {len(df)}')
         print(f'Lowest: {min(df[objective_name])} Highest {max(df[objective_name])}')
 
-    return df, tuned_parameters, objective_name
+    return df, tuned_parameters, objective_name, is_minimize
