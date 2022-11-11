@@ -70,8 +70,10 @@ To solve this issue, please edit "Trust relationships" on the [IAM](https://cons
 
 ## VegaLite object does not show
 
-1. If using JupyterLab within Amazon Sagemaker Studio, a graphic object should show.
-2. If using Jupyter notebook, change the render to default by `alt.renderers.enable('default')` in `reporting_util.py`.
+1. The graphic object should display in both JupyterLab (versions 1.0 and later) on Amazon SageMaker Studio as well as when using a Jupyter Notebook with SageMaker Notebooks
+2. If you see `<VegaLite 3 object>` when running in a JupyterLab environment, please ensure that your JupyterLab version is 1.0 or later
+3. If you see `<VegaLite 3 object>` when running in a Jupyter Notebook, change the renderer to `notebook` by uncommenting `alt.renderers.enable('notebook')` in `amtviz/visualization.py`. If the problem persists, ensure that you are running a Jupyter Notebook at version 5.3 or later and install version 2.0 or later of the vega package, by running  `pip install "vega>=2.0"`
+4. To enable charts to be displayed statically, on pages such as GitHub, you can change the renderer to `mimetype` by uncommenting `alt.renderers.enable('mimetype')` in `amtviz/visualization.py`. Please note that you must be running a JupyterLab 3 (or later) Notebook locally or with SageMaker Notebooks in this case.
 
 ---
 
