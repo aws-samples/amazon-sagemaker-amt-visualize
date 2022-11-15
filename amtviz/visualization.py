@@ -28,8 +28,9 @@ pd.set_option('display.max_colwidth', None)  # Don't truncate TrainingJobName
 
 import altair as alt
 alt.data_transformers.disable_max_rows()
-alt.renderers.enable('mimetype')
-# alt.renderers.enable('notebook') # if used within Amazon SageMaker Notebook instance
+alt.renderers.enable('default') # if used within Amazon Studio
+# alt.renderers.enable('notebook') # if used within a Notebook instance
+# alt.renderers.enable('mimetype') # if used in JupyterLab 3 locally or on an Amazon SageMaker Notebook instance
 
 import boto3
 import sagemaker
