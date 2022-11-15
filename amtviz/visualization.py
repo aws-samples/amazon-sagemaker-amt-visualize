@@ -14,6 +14,7 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
+import os
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -28,9 +29,9 @@ pd.set_option('display.max_colwidth', None)  # Don't truncate TrainingJobName
 
 import altair as alt
 alt.data_transformers.disable_max_rows()
-alt.renderers.enable('default') # if used within Amazon Studio
-# alt.renderers.enable('notebook') # if used within a Notebook instance
-# alt.renderers.enable('mimetype') # if used in JupyterLab 3 locally or on an Amazon SageMaker Notebook instance
+altair_renderer = os.getenv('ALTAIR_RENDERER', 'default')
+print(f'Setting altair renderer to {altair_renderer}.')
+alt.renderers.enable(altair_renderer)
 
 import boto3
 import sagemaker
