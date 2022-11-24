@@ -119,12 +119,12 @@ def create_charts(trials_df,
     ### add coloring of the stroke to highlight correlated
     ### data points
     jobs_props = {
-        'shape': alt.Shape('TrainingJobStatus:N', legend=alt.Legend(orient='right'))
+        'shape': alt.Shape('TrainingJobStatus:N', legend=None)
     }
 
     if multiple_tuning_jobs:
         jobs_props['strokeWidth'] = alt.StrokeWidthValue(2.0)
-        jobs_props['stroke'] = alt.Stroke('TuningJobName:N')
+        jobs_props['stroke'] = alt.Stroke('TuningJobName:N', legend=None)
               
     if color_trials:
         jobs_props['color']= alt.Color('TrainingJobName:N')
@@ -137,7 +137,7 @@ def create_charts(trials_df,
         jobs_props['stroke'] = alt.condition(
             job_highlight_selection, 
             alt.StrokeValue('gold'), 
-            alt.Stroke('TuningJobName:N') if multiple_tuning_jobs else alt.StrokeValue('white'))
+            alt.Stroke('TuningJobName:N', legend=None) if multiple_tuning_jobs else alt.StrokeValue('white'))
               
     opacity = alt.condition(brush, alt.value(1.0), alt.value(0.35))
     charts  = []
@@ -195,7 +195,7 @@ def create_charts(trials_df,
                                scale=alt.Scale(zero=False, padding=1, type=scale_type, base=scale_log_base))
 
             ### Detail Chart
-            charts.append(alt.Chart(trials_df, title=tuning_parameter)\
+            charts.append(alt.Chart(trials_df)\
                 .add_selection(brush)\
                 .add_selection(job_highlight_selection)\
                 .mark_point(filled=True, size=50)\
@@ -218,9 +218,9 @@ def create_charts(trials_df,
                 .encode(
                     x=alt.X(f'value:Q', title=objective_name, scale=objective_scale), 
                     y='density:Q',
-                    color=alt.Color(tuning_parameter+':N'),
+                    color=alt.Color(tuning_parameter+':N', legend=None),
                     tooltip=tuning_parameter))\
-                .properties(title=tuning_parameter).resolve_scale('independent')
+                .properties().resolve_scale('independent')
 
             if advanced and parameter_type == 'Q':
                 # There must be a better way to hide the extra axis and title
@@ -273,7 +273,7 @@ def create_charts(trials_df,
             .encode(
                 x=alt.X('TrainingStartTime:T', scale=alt.Scale(nice=True)), 
                 y=alt.Y(f'cum_objective:Q', scale=alt.Scale(zero=False, padding=1)), 
-                stroke='TuningJobName:N'
+                stroke=alt.Stroke('TuningJobName:N', legend=None)
             )
 
         if advanced:
@@ -347,7 +347,7 @@ def create_charts(trials_df,
 
             if multiple_job_status:
                 objective_progression_chart = objective_progression_chart\
-                    .encode(strokeDash = alt.StrokeDash('TrainingJobStatus:N'))
+                    .encode(strokeDash = alt.StrokeDash('TrainingJobStatus:N', legend=None))
 
             # Secondary chart showing the same contents, but by absolute time.
             objective_progression_absolute_chart = objective_progression_chart.encode(
