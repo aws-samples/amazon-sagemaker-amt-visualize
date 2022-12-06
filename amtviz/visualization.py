@@ -269,7 +269,7 @@ def create_charts(trials_df,
             )
 
         cum_obj_chart = alt.Chart(trials_df_by_tst)\
-            .mark_line(opacity=1., strokeDash=[3, 3], strokeWidth=2.)\
+            .mark_line(interpolate='step-after', opacity=1., strokeDash=[3, 3], strokeWidth=2.)\
             .encode(
                 x=alt.X('TrainingStartTime:T', scale=alt.Scale(nice=True)), 
                 y=alt.Y(f'cum_objective:Q', scale=alt.Scale(zero=False, padding=1)), 
