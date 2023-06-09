@@ -47,8 +47,8 @@ def _columnize(charts, cols=2):
 def visualize_tuning_job(tuning_jobs, return_dfs=False, job_metrics=None, trials_only=False, advanced=False):
     ''' tuning_job can contain a single tuning job or a list of tuning jobs. 
         Either represented by the name of the job as str or as HyperParameterTuner object.'''
-           
     trials_df, tuned_parameters, objective_name, is_minimize = get_job_analytics_data(tuning_jobs)
+    
     display(trials_df.head(10))
 
     full_df = _prepare_consolidated_df(trials_df, objective_name) if not trials_only else pd.DataFrame()
@@ -588,4 +588,10 @@ def get_job_analytics_data(tuning_job_names):
         print(f'Number of training jobs with valid objective: {len(df)}')
         print(f'Lowest: {min(df[objective_name])} Highest {max(df[objective_name])}')
 
+    # Ensure proper parameter name characters for altair 5+
+    char_to_replace, replacement_char  = ":", "_"
+    objective_name = objective_name.replace(char_to_replace, replacement_char)
+    tuned_parameters = [tp.replace(char_to_replace, replacement_char) for tp in tuned_parameters]
+    df.columns = df.columns.str.replace(char_to_replace, replacement_char)
+    
     return df, tuned_parameters, objective_name, is_minimize
