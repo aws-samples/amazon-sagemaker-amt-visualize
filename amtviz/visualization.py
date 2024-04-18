@@ -202,8 +202,8 @@ def create_charts(
                 few_values = len(trials_df[tuning_parameter].unique()) < 8
                 not_likely_discrete = (
                     len(trials_df[tuning_parameter].unique())
-                    >= trials_df[tuning_parameter].count()
-                )
+                    > trials_df[tuning_parameter].count()
+                )    # edge case when both are equal
                 if few_values and not_likely_discrete:
                     if ratio > 50:
                         scale_type = "log"
@@ -224,7 +224,7 @@ def create_charts(
             # Sync the coloring for categorical hyperparameters
             discrete = (
                 parameter_type in ["O", "N"]
-                and len(trials_df[tuning_parameter].unique()) < 8
+                and few_values
             )
 
             ### Detail Chart
