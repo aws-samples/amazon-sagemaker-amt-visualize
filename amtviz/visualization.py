@@ -69,6 +69,8 @@ def visualize_tuning_job(
 
     trials_df.columns = trials_df.columns.map(_clean_parameter_name)
     full_df.columns = full_df.columns.map(_clean_parameter_name)
+    tuned_parameters = [_clean_parameter_name(tp) for tp in tuned_parameters]
+    objective_name = _clean_parameter_name(objective_name)
 
     charts = create_charts(
         trials_df,
