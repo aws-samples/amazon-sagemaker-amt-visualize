@@ -69,6 +69,7 @@ def visualize_tuning_job(
 
     trials_df.columns = trials_df.columns.map(_clean_parameter_name)
     full_df.columns = full_df.columns.map(_clean_parameter_name)
+
     charts = create_charts(
         trials_df,
         tuned_parameters,
@@ -251,7 +252,13 @@ def create_charts(
                         | alt.Chart(trials_df)
                         .transform_filter(brush)
                         .transform_density(
-                            objective_name, bandwidth=0.01, groupby=[tuning_parameter]
+                            objective_name,
+                            bandwidth=0.01,
+                            groupby=[tuning_parameter],
+                            extent=[
+                                trials_df[objective_name].min(),
+                                trials_df[objective_name].max(),
+                            ],
                         )
                         .mark_area(opacity=0.5)
                         .encode(
