@@ -44,11 +44,11 @@ sm = boto3.client('sagemaker')
 def _columnize(charts, cols=2):
     return alt.vconcat(*[alt.hconcat(*charts[i:i+cols]) for i in range(0, len(charts), cols)])
 
-def visualize_tuning_job(tuning_jobs, return_dfs=False, job_metrics=None, trials_only=False, advanced=False):
+def visualize_tuning_job(tuning_jobs, return_dfs=False, job_metrics=None, trials_only=False, advanced=False, filter_out_stopped=False):
     ''' tuning_job can contain a single tuning job or a list of tuning jobs. 
         Either represented by the name of the job as str or as HyperParameterTuner object.'''
            
-    trials_df, tuned_parameters, objective_name, is_minimize = get_job_analytics_data(tuning_jobs)
+    trials_df, tuned_parameters, objective_name, is_minimize = get_job_analytics_data(tuning_jobs, filter_out_stopped)
     display(trials_df.head(10))
 
     full_df = _prepare_consolidated_df(trials_df, objective_name) if not trials_only else pd.DataFrame()
@@ -514,7 +514,7 @@ def _get_tuning_job_names_with_parents(tuning_job_names):
     # return de-duplicated tuning job names
     return list(set(all_tuning_job_names))
 
-def get_job_analytics_data(tuning_job_names):
+def get_job_analytics_data(tuning_job_names, filter_out_stopped=False):
     
     if not isinstance(tuning_job_names, list):
         tuning_job_names = [tuning_job_names]
@@ -541,7 +541,7 @@ def get_job_analytics_data(tuning_job_names):
         status = tuning_job_result['HyperParameterTuningJobStatus']
         print(f'Tuning job {tuning_job_name:25s} status: {status}')
         
-        df = pd.concat([df, _get_df(tuning_job_name)])
+        df = pd.concat([df, _get_df(tuning_job_name, filter_out_stopped)])
 
         # maintain objective and assure that all tuning jobs use the same
         job_is_minimize = (tuning_job_result['HyperParameterTuningJobConfig']['HyperParameterTuningJobObjective']['Type'] != 'Maximize')
