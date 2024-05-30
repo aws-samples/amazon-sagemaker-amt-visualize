@@ -67,6 +67,8 @@ def visualize_tuning_job(
         else pd.DataFrame()
     )
 
+    trials_df.columns = trials_df.columns.map(_clean_parameter_name)
+    full_df.columns = full_df.columns.map(_clean_parameter_name)
     charts = create_charts(
         trials_df,
         tuned_parameters,
@@ -531,6 +533,11 @@ def create_charts(
     return overview_row & detail_rows & job_level_rows
 
 
+# Ensure proper parameter name characters for altair 5+
+def _clean_parameter_name(s):
+    return s.replace(":", "_").replace(".", "_")
+
+
 def _prepare_training_job_metrics(jobs):
     df = pd.DataFrame()
     for job_name, start_time, end_time in jobs:
@@ -735,5 +742,7 @@ def get_job_analytics_data(tuning_job_names):
         print()
         print(f"Number of training jobs with valid objective: {len(df)}")
         print(f"Lowest: {min(df[objective_name])} Highest {max(df[objective_name])}")
+
+        tuned_parameters = [_clean_parameter_name(tp) for tp in tuned_parameters]
 
     return df, tuned_parameters, objective_name, is_minimize
