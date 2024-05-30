@@ -301,7 +301,7 @@ def create_charts(
         trials_df_by_tst = trials_df.sort_values(["TuningJobName", "TrainingStartTime"])
         trials_df_by_tst["cum_objective"] = trials_df_by_tst.groupby(
             ["TuningJobName"]
-        ).apply(lambda x: x.cummin() if minimize_objective else x.cummax())[
+        ).transform(lambda x: x.cummin() if minimize_objective else x.cummax())[
             objective_name
         ]
 
