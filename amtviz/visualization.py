@@ -257,6 +257,8 @@ def create_charts(
                             objective_name,
                             bandwidth=0.01,
                             groupby=[tuning_parameter],
+                            # https://github.com/vega/altair/issues/3203#issuecomment-2141558911
+                            # Specifying extent no longer necessary (>5.1.2). Leaving the work around in it for now.
                             extent=[
                                 trials_df[objective_name].min(),
                                 trials_df[objective_name].max(),
