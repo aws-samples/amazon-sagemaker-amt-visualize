@@ -31,9 +31,7 @@ sm = boto3.client("sagemaker")
 def disk_cache(outer):
     def inner(*args, **kwargs):
         key_input = str(args) + str(kwargs)
-        key = hashlib.md5(
-            key_input.encode("utf-8")
-        ).hexdigest()  # nosec b303 - Not used for cryptography, but to create lookup key
+        key = hashlib.md5(key_input.encode("utf-8")).hexdigest()  # nosec b303 - Not used for cryptography, but to create lookup key
         cache_dir = ".cache/cw_metrics/"
         fn = f"{cache_dir}/req_{key}.jsonl.gz"
         if Path(fn).exists():
@@ -45,9 +43,7 @@ def disk_cache(outer):
                 return df
             except KeyError as e:
                 pass  # Empty file leads to empty df, hence no df['ts'] possible
-            except (
-                BaseException
-            ) as e:  # nosec b110 - doesn't matter why we could not load it.
+            except BaseException as e:  # nosec b110 - doesn't matter why we could not load it.
                 print("\nException", type(e), e)
                 pass  # continue with calling the outer function
 

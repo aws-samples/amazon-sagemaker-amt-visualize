@@ -19,6 +19,8 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+from pprint import pprint
+
 import numpy as np
 import pandas as pd
 
@@ -52,12 +54,11 @@ def visualize_tuning_job(
     tuning_jobs, return_dfs=False, job_metrics=None, trials_only=False, advanced=False
 ):
     """tuning_job can contain a single tuning job or a list of tuning jobs.
-    Either represented by the name of the job as str or as HyperParameterTuner object.
-    """
+    Either represented by the name of the job as str or as HyperParameterTuner object."""
+
     trials_df, tuned_parameters, objective_name, is_minimize = get_job_analytics_data(
         tuning_jobs
     )
-
     display(trials_df.head(10))
 
     full_df = (
@@ -65,6 +66,11 @@ def visualize_tuning_job(
         if not trials_only
         else pd.DataFrame()
     )
+
+    trials_df.columns = trials_df.columns.map(_clean_parameter_name)
+    full_df.columns = full_df.columns.map(_clean_parameter_name)
+    tuned_parameters = [_clean_parameter_name(tp) for tp in tuned_parameters]
+    objective_name = _clean_parameter_name(objective_name)
 
     charts = create_charts(
         trials_df,
@@ -192,6 +198,7 @@ def create_charts(
             scale_type = "linear"
             scale_log_base = 10
 
+            few_values = len(trials_df[tuning_parameter].unique()) < 8
             parameter_type = "N"  # Nominal
             dtype = str(trials_df.dtypes[tuning_parameter])
             if "float" in dtype:
@@ -199,7 +206,6 @@ def create_charts(
                 ratio = (trials_df[tuning_parameter].max() + 1e-10) / (
                     trials_df[tuning_parameter].min() + 1e-10
                 )
-                few_values = len(trials_df[tuning_parameter].unique()) < 8
                 not_likely_discrete = (
                     len(trials_df[tuning_parameter].unique())
                     > trials_df[tuning_parameter].count()
@@ -258,7 +264,15 @@ def create_charts(
                         | alt.Chart(trials_df)
                         .transform_filter(brush)
                         .transform_density(
-                            objective_name, bandwidth=0.01, groupby=[tuning_parameter]
+                            objective_name,
+                            bandwidth=0.01,
+                            groupby=[tuning_parameter],
+                            # https://github.com/vega/altair/issues/3203#issuecomment-2141558911
+                            # Specifying extent no longer necessary (>5.1.2). Leaving the work around in it for now.
+                            extent=[
+                                trials_df[objective_name].min(),
+                                trials_df[objective_name].max(),
+                            ],
                         )
                         .mark_area(opacity=0.5)
                         .encode(
@@ -542,6 +556,11 @@ def create_charts(
     return overview_row & detail_rows & job_level_rows
 
 
+# Ensure proper parameter name characters for altair 5+
+def _clean_parameter_name(s):
+    return s.replace(":", "_").replace(".", "_")
+
+
 def _prepare_training_job_metrics(jobs):
     df = pd.DataFrame()
     for job_name, start_time, end_time in jobs:
@@ -747,12 +766,6 @@ def get_job_analytics_data(tuning_job_names):
         print(f"Number of training jobs with valid objective: {len(df)}")
         print(f"Lowest: {min(df[objective_name])} Highest {max(df[objective_name])}")
 
-    # Ensure proper parameter name characters for altair 5+
-    char_to_replace, replacement_char = ":", "_"
-    objective_name = objective_name.replace(char_to_replace, replacement_char)
-    tuned_parameters = [
-        tp.replace(char_to_replace, replacement_char) for tp in tuned_parameters
-    ]
-    df.columns = df.columns.str.replace(char_to_replace, replacement_char)
+        tuned_parameters = [_clean_parameter_name(tp) for tp in tuned_parameters]
 
     return df, tuned_parameters, objective_name, is_minimize
