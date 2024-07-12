@@ -187,31 +187,33 @@ def create_charts(
 
     def render_detail_charts():
         for tuning_parameter in tuning_parameters:
+            # To force a tuning job to sample a combination more than once, we
+            # sometimes introduce a hyperparameter that has no effect.
+            # It's values are random and without impact, so we omit it from analysis.
+            if tuning_parameter == "dummy":
+                continue
+                
             # Map dataframe's dtype to altair's types and
             # adjust scale if necessary
-
             scale_type = "linear"
             scale_log_base = 10
 
+            few_values = len(trials_df[tuning_parameter].unique()) < 8
             parameter_type = "N"  # Nominal
             dtype = str(trials_df.dtypes[tuning_parameter])
-
             if "float" in dtype:
                 parameter_type = "Q"  # Quantitative
                 ratio = (trials_df[tuning_parameter].max() + 1e-10) / (
                     trials_df[tuning_parameter].min() + 1e-10
                 )
-                if (
-                    len(trials_df[tuning_parameter].unique()) < 8
-                    and len(trials_df[tuning_parameter].unique())
-                    >= trials_df[tuning_parameter].count()
-                ):
-                    ratio = (trials_df[tuning_parameter].max() + 1e-4) / (
-                        trials_df[tuning_parameter].min() + 1e-4
-                    )
+                not_likely_discrete = (
+                    len(trials_df[tuning_parameter].unique())
+                    > trials_df[tuning_parameter].count()
+                )    # edge case when both are equal
+                if few_values and not_likely_discrete:
                     if ratio > 50:
                         scale_type = "log"
-                    elif ratio > 20:
+                    elif ratio > 10:
                         scale_type = "log"
                         scale_log_base = 2
 
@@ -223,6 +225,12 @@ def create_charts(
                 scale=alt.Scale(
                     zero=False, padding=1, type=scale_type, base=scale_log_base
                 ),
+            )
+
+            # Sync the coloring for categorical hyperparameters
+            discrete = (
+                parameter_type in ["O", "N"]
+                and few_values
             )
 
             ### Detail Chart
@@ -244,10 +252,12 @@ def create_charts(
                 )
             )
 
-            if (
-                parameter_type in ["O", "N"]
-                and len(trials_df[tuning_parameter].unique()) < 8
-            ):
+            if discrete:
+                # Individually coloring the values only if we don't already
+                # use the colors to show the different tuning jobs
+                print(parameter_type, tuning_parameter)
+                if not multiple_tuning_jobs:
+                    charts[-1] = charts[-1].encode(color=f"{tuning_parameter}:N")
                 charts[-1] = (
                     (
                         charts[-1]
@@ -267,20 +277,22 @@ def create_charts(
                         .mark_area(opacity=0.5)
                         .encode(
                             x=alt.X(
-                                f"value:Q", title=objective_name, scale=objective_scale
+                                "value:Q", title=objective_name, scale=objective_scale
                             ),
                             y="density:Q",
-                            color=alt.Color(tuning_parameter + ":N", legend=None),
+                            color=alt.Color(
+                                f"{tuning_parameter}:N",
+                            ),
                             tooltip=tuning_parameter,
                         )
                     )
-                    .properties()
-                    .resolve_scale("independent")
+                    .properties(title=tuning_parameter)
+                    #.resolve_scale("independent")
+                    #.resolve_legend(color="independent")
                 )
 
             if advanced and parameter_type == "Q":
-                # There must be a better way to hide the extra axis and title
-                # With resolve_axis?
+                # Adding tick marks to the detail charts with quantitative hyperparameters
                 x_enc = x_encoding.copy()
                 charts[-1].encoding.x.title = None
                 charts[-1].encoding.x.axis = alt.Axis(labels=False)
