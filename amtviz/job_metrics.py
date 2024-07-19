@@ -31,7 +31,8 @@ sm = boto3.client("sagemaker")
 def disk_cache(outer):
     def inner(*args, **kwargs):
         key_input = str(args) + str(kwargs)
-        key = hashlib.md5(key_input.encode("utf-8")).hexdigest()  # nosec b303 - Not used for cryptography, but to create lookup key
+        # nosec b303 - Not used for cryptography, but to create lookup key
+        key = hashlib.md5(key_input.encode("utf-8")).hexdigest()
         cache_dir = Path.home().joinpath(".amtviz/cw_metrics_cache")
         fn = f"{cache_dir}/req_{key}.jsonl.gz"
         if Path(fn).exists():
@@ -42,8 +43,10 @@ def disk_cache(outer):
                 df["rel_ts"] = np.array(df["rel_ts"], dtype=np.datetime64)
                 return df
             except KeyError as e:
-                pass  # Empty file leads to empty df, hence no df['ts'] possible
-            except BaseException as e:  # nosec b110 - doesn't matter why we could not load it.
+                # Empty file leads to empty df, hence no df['ts'] possible
+                pass
+            # nosec b110 - doesn't matter why we could not load it.
+            except BaseException as e:
                 print("\nException", type(e), e)
                 pass  # continue with calling the outer function
 
@@ -93,7 +96,8 @@ def _get_metric_data(queries, start_time, end_time):
         ts = np.array(metric_data["Timestamps"], dtype=np.datetime64)
         labels = [metric_data["Label"]] * len(values)
 
-        df = pd.concat([df, pd.DataFrame({"value": values, "ts": ts, "label": labels})])
+        df = pd.concat(
+            [df, pd.DataFrame({"value": values, "ts": ts, "label": labels})])
 
     # We now calculate the relative time based on the first actual observed time stamps, not
     # the potentially start time that we used to scope our CW API call. The difference
@@ -132,5 +136,6 @@ def _collect_metrics(dimensions, start_time, end_time):
 
 
 def get_cw_job_metrics(job_name, start_time=None, end_time=None):
-    dimensions = [("TrainingJobName", job_name), ("Host", job_name + "/algo-1")]
+    dimensions = [("TrainingJobName", job_name),
+                  ("Host", job_name + "/algo-1")]
     return _collect_metrics(dimensions, start_time, end_time)
