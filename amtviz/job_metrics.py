@@ -32,7 +32,7 @@ def disk_cache(outer):
     def inner(*args, **kwargs):
         key_input = str(args) + str(kwargs)
         key = hashlib.md5(key_input.encode("utf-8")).hexdigest()  # nosec b303 - Not used for cryptography, but to create lookup key
-        cache_dir = ".cache/cw_metrics/"
+        cache_dir = Path.home().joinpath(".amtviz/cw_metrics_cache")
         fn = f"{cache_dir}/req_{key}.jsonl.gz"
         if Path(fn).exists():
             try:
