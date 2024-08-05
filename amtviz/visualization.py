@@ -43,26 +43,24 @@ sm = boto3.client("sagemaker")
 
 
 def _columnize(charts, cols=2):
-    return alt.vconcat(
-        *[alt.hconcat(*charts[i: i + cols]) for i in range(0, len(charts), cols)]
-    )
+    return alt.vconcat(*[alt.hconcat(*charts[i : i + cols]) for i in range(0, len(charts), cols)])
 
 
 def visualize_tuning_job(
-    tuning_jobs, return_dfs=False, job_metrics=None, trials_only=False, advanced=False
+    tuning_jobs,
+    return_dfs=False,
+    job_metrics=None,
+    trials_only=False,
+    advanced=False,
 ):
     """tuning_job can contain a single tuning job or a list of tuning jobs.
     Either represented by the name of the job as str or as HyperParameterTuner object."""
 
-    trials_df, tuned_parameters, objective_name, is_minimize = get_job_analytics_data(
-        tuning_jobs
-    )
+    trials_df, tuned_parameters, objective_name, is_minimize = get_job_analytics_data(tuning_jobs)
     display(trials_df.head(10))
 
     full_df = (
-        _prepare_consolidated_df(trials_df, objective_name)
-        if not trials_only
-        else pd.DataFrame()
+        _prepare_consolidated_df(trials_df, objective_name) if not trials_only else pd.DataFrame()
     )
 
     trials_df.columns = trials_df.columns.map(_clean_parameter_name)
@@ -110,9 +108,7 @@ def create_charts(
     # Rows, n>1
     # Detail Charts
 
-    brush = alt.selection(
-        type="interval", encodings=["x"], resolve="intersect", empty="all"
-    )
+    brush = alt.selection(type="interval", encodings=["x"], resolve="intersect", empty="all")
 
     job_highlight_selection = alt.selection_single(
         on="mouseover",
@@ -128,11 +124,8 @@ def create_charts(
             trp = alt.Tooltip(trp, format=".2e")
         detail_tooltip.append(trp)
 
-    detail_tooltip.append(alt.Tooltip(
-        "TrainingStartTime:T", format="%H:%M:%S"))
-    detail_tooltip.extend(
-        ["TrainingJobName", "TrainingJobStatus", "TrainingElapsedTimeSeconds"]
-    )
+    detail_tooltip.append(alt.Tooltip("TrainingStartTime:T", format="%H:%M:%S"))
+    detail_tooltip.extend(["TrainingJobName", "TrainingJobStatus", "TrainingElapsedTimeSeconds"])
 
     # create stroke/stroke-width for tuning_jobs
     # and color for training jobs, if wanted
@@ -168,8 +161,10 @@ def create_charts(
     # charts, so that the filtering does not make the axis
     # jump, which would make comparisons harder.
     objective_scale = alt.Scale(
-        domain=(trials_df[objective_name].min(),
-                trials_df[objective_name].max())
+        domain=(
+            trials_df[objective_name].min(),
+            trials_df[objective_name].max(),
+        )
     )
 
     # If we have multiple tuning jobs, we also want to be able
@@ -207,9 +202,8 @@ def create_charts(
                     trials_df[tuning_parameter].min() + 1e-10
                 )
                 not_likely_discrete = (
-                    len(trials_df[tuning_parameter].unique())
-                    > trials_df[tuning_parameter].count()
-                )    # edge case when both are equal
+                    len(trials_df[tuning_parameter].unique()) > trials_df[tuning_parameter].count()
+                )  # edge case when both are equal
                 if few_values and not_likely_discrete:
                     if ratio > 50:
                         scale_type = "log"
@@ -223,15 +217,15 @@ def create_charts(
             x_encoding = alt.X(
                 f"{tuning_parameter}:{parameter_type}",
                 scale=alt.Scale(
-                    zero=False, padding=1, type=scale_type, base=scale_log_base
+                    zero=False,
+                    padding=1,
+                    type=scale_type,
+                    base=scale_log_base,
                 ),
             )
 
             # Sync the coloring for categorical hyperparameters
-            discrete = (
-                parameter_type in ["O", "N"]
-                and few_values
-            )
+            discrete = parameter_type in ["O", "N"] and few_values
 
             # Detail Chart
             charts.append(
@@ -257,8 +251,7 @@ def create_charts(
                 # use the colors to show the different tuning jobs
                 print(parameter_type, tuning_parameter)
                 if not multiple_tuning_jobs:
-                    charts[-1] = charts[-1].encode(
-                        color=f"{tuning_parameter}:N")
+                    charts[-1] = charts[-1].encode(color=f"{tuning_parameter}:N")
                 charts[-1] = (
                     (
                         charts[-1]
@@ -278,7 +271,9 @@ def create_charts(
                         .mark_area(opacity=0.5)
                         .encode(
                             x=alt.X(
-                                "value:Q", title=objective_name, scale=objective_scale
+                                "value:Q",
+                                title=objective_name,
+                                scale=objective_scale,
                             ),
                             y="density:Q",
                             color=alt.Color(
@@ -286,8 +281,7 @@ def create_charts(
                             ),
                             tooltip=tuning_parameter,
                         )
-                    )
-                    .properties(title=tuning_parameter)
+                    ).properties(title=tuning_parameter)
                     # .resolve_scale("independent")
                     # .resolve_legend(color="independent")
                 )
@@ -298,12 +292,9 @@ def create_charts(
                 charts[-1].encoding.x.title = None
                 charts[-1].encoding.x.axis = alt.Axis(labels=False)
 
-                charts[-1] = charts[-1] & alt.Chart(trials_df).mark_tick(
-                    opacity=0.5
-                ).encode(
+                charts[-1] = charts[-1] & alt.Chart(trials_df).mark_tick(opacity=0.5).encode(
                     x=x_enc,
-                    opacity=alt.condition(
-                        brush, alt.value(0.5), alt.value(0.1)),
+                    opacity=alt.condition(brush, alt.value(0.5), alt.value(0.1)),
                 )
 
         return _columnize(charts)
@@ -316,13 +307,10 @@ def create_charts(
     def render_progress_chart():
         # Sorting trials by training start time, so that we can track the \
         # progress of the best objective so far over time
-        trials_df_by_tst = trials_df.sort_values(
-            ["TuningJobName", "TrainingStartTime"])
-        trials_df_by_tst["cum_objective"] = trials_df_by_tst.groupby(
-            ["TuningJobName"]
-        ).transform(lambda x: x.cummin() if minimize_objective else x.cummax())[
-            objective_name
-        ]
+        trials_df_by_tst = trials_df.sort_values(["TuningJobName", "TrainingStartTime"])
+        trials_df_by_tst["cum_objective"] = trials_df_by_tst.groupby(["TuningJobName"]).transform(
+            lambda x: x.cummin() if minimize_objective else x.cummax()
+        )[objective_name]
 
         progress_chart = (
             alt.Chart(trials_df_by_tst)
@@ -352,8 +340,7 @@ def create_charts(
             )
             .encode(
                 x=alt.X("TrainingStartTime:T", scale=alt.Scale(nice=True)),
-                y=alt.Y(f"cum_objective:Q", scale=alt.Scale(
-                    zero=False, padding=1)),
+                y=alt.Y(f"cum_objective:Q", scale=alt.Scale(zero=False, padding=1)),
                 stroke=alt.Stroke("TuningJobName:N", legend=None),
             )
         )
@@ -396,8 +383,9 @@ def create_charts(
 
     training_job_name_encodings = {
         "color": alt.condition(
-            brush, alt.Color("TrainingJobName:N",
-                             legend=None), alt.value("grey")
+            brush,
+            alt.Color("TrainingJobName:N", legend=None),
+            alt.value("grey"),
         ),
         "opacity": alt.condition(brush, alt.value(1.0), alt.value(0.3)),
         "strokeWidth": alt.condition(brush, alt.value(2.5), alt.value(0.8)),
@@ -428,12 +416,8 @@ def create_charts(
             > 1
         ):
             objective_progression_chart = (
-                alt.Chart(
-                    full_df, title=f"Progression {objective_name}", width=400)
-                .transform_filter(
-                    alt.FieldEqualPredicate(
-                        field="label", equal=objective_name)
-                )
+                alt.Chart(full_df, title=f"Progression {objective_name}", width=400)
+                .transform_filter(alt.FieldEqualPredicate(field="label", equal=objective_name))
                 .mark_line(point=True)
                 .encode(
                     x=alt.X("rel_ts:T", axis=alt.Axis(format=duration_format)),
@@ -446,8 +430,7 @@ def create_charts(
 
             if multiple_job_status:
                 objective_progression_chart = objective_progression_chart.encode(
-                    strokeDash=alt.StrokeDash(
-                        "TrainingJobStatus:N", legend=None)
+                    strokeDash=alt.StrokeDash("TrainingJobStatus:N", legend=None)
                 )
 
             # Secondary chart showing the same contents, but by absolute time.
@@ -513,9 +496,7 @@ def create_charts(
                 x=alt.X("rel_ts:T", axis=alt.Axis(format=duration_format)),
                 y="value:Q",
                 **training_job_name_encodings,
-                strokeDash=alt.StrokeDash(
-                    "label:N", legend=alt.Legend(orient="bottom")
-                ),
+                strokeDash=alt.StrokeDash("label:N", legend=alt.Legend(orient="bottom")),
                 tooltip=metrics_tooltip,
             )
             .interactive()
@@ -539,9 +520,7 @@ def create_charts(
                     x=alt.X("rel_ts:T", axis=alt.Axis(format=duration_format)),
                     y=alt.Y("value:Q"),
                     **training_job_name_encodings,
-                    strokeDash=alt.StrokeDash(
-                        "label:N", legend=alt.Legend(orient="bottom")
-                    ),
+                    strokeDash=alt.StrokeDash("label:N", legend=alt.Legend(orient="bottom")),
                     tooltip=metrics_tooltip,
                 )
                 .interactive()
@@ -550,9 +529,9 @@ def create_charts(
         job_level_rows = job_metrics_chart & instance_metrics_chart
         if objective_progression_chart:
             job_level_rows = objective_progression_chart & job_level_rows
-        job_level_rows = job_level_rows.resolve_scale(
-            strokeDash="independent"
-        ).properties(title="Job / Instance Level Metrics")
+        job_level_rows = job_level_rows.resolve_scale(strokeDash="independent").properties(
+            title="Job / Instance Level Metrics"
+        )
 
     overview_row = (progress_chart | result_hist_chart).properties(
         title="Hyper Parameter Tuning Job"
@@ -638,8 +617,7 @@ def _get_df(tuning_job_name, filter_out_stopped=False):
             try:
                 # Remove decorations, like []
                 df[parameter_name] = df[parameter_name].apply(
-                    lambda v: v.replace(
-                        "[", "").replace("]", "").replace('"', "")
+                    lambda v: v.replace("[", "").replace("]", "").replace('"', "")
                 )
 
                 # Is it an int? 3 would work, 3.4 would fail.
@@ -671,14 +649,10 @@ def _get_tuning_job_names_with_parents(tuning_job_names):
         if "WarmStartConfig" in tuning_job_result:
             parent_jobs = [
                 cfg["HyperParameterTuningJobName"]
-                for cfg in tuning_job_result["WarmStartConfig"][
-                    "ParentHyperParameterTuningJobs"
-                ]
+                for cfg in tuning_job_result["WarmStartConfig"]["ParentHyperParameterTuningJobs"]
             ]
             if parent_jobs:
-                print(
-                    f'Tuning job {tuning_job_name}\'s parents: {", ".join(parent_jobs)}'
-                )
+                print(f'Tuning job {tuning_job_name}\'s parents: {", ".join(parent_jobs)}')
         all_tuning_job_names.extend([tuning_job_name, *parent_jobs])
 
     # return de-duplicated tuning job names
@@ -717,9 +691,9 @@ def get_job_analytics_data(tuning_job_names):
 
         # maintain objective and assure that all tuning jobs use the same
         job_is_minimize = (
-            tuning_job_result["HyperParameterTuningJobConfig"][
-                "HyperParameterTuningJobObjective"
-            ]["Type"]
+            tuning_job_result["HyperParameterTuningJobConfig"]["HyperParameterTuningJobObjective"][
+                "Type"
+            ]
             != "Maximize"
         )
         job_objective_name = tuning_job_result["HyperParameterTuningJobConfig"][
@@ -750,16 +724,18 @@ def get_job_analytics_data(tuning_job_names):
         # Cleanup wrongly encoded floats, e.g. containing quotes.
         for i, dtype in enumerate(df.dtypes):
             column_name = str(df.columns[i])
-            if column_name in ["TrainingJobName", "TrainingJobStatus", "TuningJobName"]:
+            if column_name in [
+                "TrainingJobName",
+                "TrainingJobStatus",
+                "TuningJobName",
+            ]:
                 continue
             if dtype == "object":
                 val = df[column_name].iloc[0]
                 if isinstance(val, str) and val.startswith('"'):
                     try:
-                        df[column_name] = df[column_name].apply(
-                            lambda x: int(x.replace('"', ""))
-                        )
-                    except:  # nosec b110 if we fail, we just continue with what we had
+                        df[column_name] = df[column_name].apply(lambda x: int(x.replace('"', "")))
+                    except:  # noqa: E722 nosec b110 if we fail, we just continue with what we had
                         pass  # Value is not an int, but a string
 
         df = df.sort_values("FinalObjectiveValue", ascending=is_minimize)
@@ -773,10 +749,8 @@ def get_job_analytics_data(tuning_job_names):
 
         print()
         print(f"Number of training jobs with valid objective: {len(df)}")
-        print(
-            f"Lowest: {min(df[objective_name])} Highest {max(df[objective_name])}")
+        print(f"Lowest: {min(df[objective_name])} Highest {max(df[objective_name])}")
 
-        tuned_parameters = [_clean_parameter_name(
-            tp) for tp in tuned_parameters]
+        tuned_parameters = [_clean_parameter_name(tp) for tp in tuned_parameters]
 
     return df, tuned_parameters, objective_name, is_minimize
